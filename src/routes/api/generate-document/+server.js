@@ -1,6 +1,6 @@
-import { Document, Paragraph, TextRun, Packer, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Paragraph, TextRun, Packer, AlignmentType } from 'docx';
 import { error } from '@sveltejs/kit';
-import { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, BorderStyle } from 'docx';
+import { Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 
 export async function POST({ request, url }) {
   try {
