@@ -3,39 +3,44 @@ import { error } from '@sveltejs/kit';
 import { Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 
 export async function POST({ request, url }) {
-  try {
-    const formData = await request.json();
-    console.log('Received data:', formData);
+    try {
+        const formData = await request.json();
+        const documentType = url.searchParams.get('type');
+        let doc, filename;
 
-    const documentType = url.searchParams.get('type');
-    console.log('Requested document type:', documentType);
-    
-    let doc, filename;
+        switch(documentType) {
+            case 'arbitration':
+                doc = generateArbitrationAgreement(formData);
+                filename = 'arabuluculuk_tutanagi.docx';
+                break;
+            case 'firstSession':
+                doc = generateFirstSessionMinutes(formData);
+                filename = 'ilk_oturum_tutanagi.docx';
+                break;
+            case 'application':
+                doc = generateApplicationDocument(formData);
+                filename = 'basvuru_tutanagi.docx';
+                break;
+            case 'agreement':
+                doc = generateAgreementDocument(formData);
+                filename = 'anlasma_tutanagi.docx';
+                break;
+            default:
+                throw error(400, 'Invalid document type');
+        }
 
-    if (documentType === 'arbitration') {
-      console.log('Generating Arbitration Agreement...');
-      doc = generateArbitrationAgreement(formData);
-      filename = 'arabuluculuk_tutanagi.docx';
-    } else if (documentType === 'firstSession') {
-      console.log('Generating First Session Minutes...');
-      doc = generateFirstSessionMinutes(formData);
-      filename = 'ilk_oturum_tutanagi.docx';
-    } else {
-      throw error(400, 'Invalid document type');
+        const buffer = await Packer.toBuffer(doc);
+
+        return new Response(buffer, {
+            headers: {
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'Content-Disposition': `attachment; filename="${filename}"`
+            }
+        });
+    } catch (err) {
+        console.error('Error in POST handler:', err);
+        throw error(500, 'Internal server error');
     }
-
-    const buffer = await Packer.toBuffer(doc);
-
-    return new Response(buffer, {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="${filename}"`
-      }
-    });
-  } catch (err) {
-    console.error('Error details:', err);
-    throw error(500, 'Internal server error: ' + err.message);
-  }
 }
 
 
@@ -46,6 +51,8 @@ function generateArbitrationAgreement(formData) {
     size: 24, // 12pt in half-points
     italics: true
   };
+  const baseStyle1 = { font: "Calibri", size: 24, italics: true };
+
 
   const children = [
     new Paragraph({
@@ -55,69 +62,94 @@ function generateArbitrationAgreement(formData) {
       children: [new TextRun({ text: `ARABULUCULUK DOSYA No:2024/${formData.dosya_numarasi}`, ...baseStyle, bold: true })],
     }),
     new Paragraph({
-      children: [new TextRun({ text: "ARABULUCU :", ...baseStyle, bold: true })],
+      children: [new TextRun({ text: "ARABULUCU  :", ...baseStyle, bold: true, underline: true })],
     }),
     new Paragraph({
-      children: [new TextRun({ text: "ADI SOYADI :Mehmet Celal Kemik", ...baseStyle, bold: true })],
+      children: [new TextRun({ text: "ADI SOYADI  : Mehmet Celal Kemik", ...baseStyle, bold: true })],
     }),
     new Paragraph({
-      children: [new TextRun({ text: "SİCİL NO :4573", ...baseStyle, bold: true })],
+      children: [new TextRun({ text: "SİCİL NO        : 4573", ...baseStyle, bold: true })],
     }),
     new Paragraph({
-      children: [new TextRun({ text: "ADRESİ :", ...baseStyle, bold: true }),
+      children: [new TextRun({ text: "ADRESİ          :", ...baseStyle, bold: true }),
                  new TextRun({ text: " Kemerköprü mah. Kavaf sok. No:2 Bartın", ...baseStyle }),
       ],
     }),
     new Paragraph({
-      children: [new TextRun({ text: "TARAF 1 :", ...baseStyle, bold: true })],
+        children: [
+            new TextRun({ 
+                text: "TARAF 1        :", 
+                bold: true,
+                underline: true,
+                ...baseStyle1 
+            })
+        ]
+    }),
+
+    new Paragraph({
+        children: [
+            new TextRun({ text: "ADI SOYADI  : ", bold: true, ...baseStyle1 }),
+            new TextRun({ text: formData.taraf1isim, ...baseStyle1 }),
+            new TextRun({ text: " -TC KİMLİK NO: ", bold: true, ...baseStyle1 }),
+            new TextRun({ text: formData.kimlik_no, ...baseStyle1 })
+        ]
+    }),
+
+    new Paragraph({
+        children: [
+            new TextRun({ text: "ADRESİ          : ", bold: true, ...baseStyle1 }),
+            new TextRun({ text: formData.taraf1adres, ...baseStyle1 })
+        ]
+    }),
+
+    new Paragraph({
+        children: [
+            new TextRun({ 
+                text: "TARAF 2        :", 
+                bold: true,
+                underline: true,
+                ...baseStyle1
+            })
+        ]
+    }),
+
+    new Paragraph({
+        children: [
+            new TextRun({ text: "ADI SOYADI  : ", bold: true, ...baseStyle1 }),
+            new TextRun({ text: formData.taraf2isim, ...baseStyle1 })
+        ]
+    }),
+
+    new Paragraph({
+        children: [
+            new TextRun({ text: "MERSİS NO   : ", bold: true, ...baseStyle1 }),
+            new TextRun({ text: formData.taraf2mersis_no, ...baseStyle1 })
+        ]
+    }),
+
+    new Paragraph({
+        children: [
+            new TextRun({ text: "ADRESİ          : ", bold: true, ...baseStyle1 }),
+            new TextRun({ text: formData.taraf2adres, ...baseStyle1 })
+        ]
     }),
     new Paragraph({
-      children: [new TextRun({ text: `ADI SOYADI : `, ...baseStyle, bold: true }),
-                 new TextRun({ text: ` ${formData.taraf1isim}`, ...baseStyle }),
-                 new TextRun({ text: `  -TC KİMLİK NO: `, ...baseStyle, bold: true }),
-                 new TextRun({ text: `${formData.kimlik_no}`, ...baseStyle }),
-      ],
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: `ADRESİ : `, ...baseStyle, bold: true }),
-                 new TextRun({ text: `${formData.taraf1adres}`, ...baseStyle }),
-      ],
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: "TARAF 2 :", ...baseStyle, bold: true })],
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: `ADI SOYADI : `, ...baseStyle, bold: true }),
-                 new TextRun({ text: `${formData.taraf2isim}`, ...baseStyle }),
-      ],
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: `MERSİS NO : `, ...baseStyle, bold: true }),
-                 new TextRun({ text: `${formData.taraf2mersis_no}`, ...baseStyle }),
-      ],
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: `ADRESİ : `, ...baseStyle, bold: true }),
-                 new TextRun({ text: `${formData.taraf2adres}`, ...baseStyle }),
-      ],
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: "ARABULUCULUK KONUSU UYUŞMAZLIK: ", ...baseStyle, bold: true }),
+      children: [new TextRun({ text: "ARABULUCULUK KONUSU UYUŞMAZLIK: ", ...baseStyle, bold: true, underline: true }),
                  new TextRun({ text: "Kıdem tazminatı, İhbar tazminatları ,Ücret alacağı, Fazla mesai alacağı, yıllık izin alacağı, UGBT alacağı, agi alacağı, hafta sonu çalışma", ...baseStyle }),
       ],
     }),
     new Paragraph({
-      children: [new TextRun({ text: `ARABULUCULUK SÜRECİ BAŞLAGIÇ TARİH: `, ...baseStyle, bold: true }),
+      children: [new TextRun({ text: `ARABULUCULUK SÜRECİ BAŞLAGIÇ TARİH: `, ...baseStyle, bold: true, underline: true }),
                  new TextRun({ text: `${formData.today}`, ...baseStyle }),
       ],
     }),
     new Paragraph({
-      children: [new TextRun({ text: `ARABULUCULUK SÜRECİNİN BİTTİĞİ TARİH: `, ...baseStyle, bold: true }),
+      children: [new TextRun({ text: `ARABULUCULUK SÜRECİNİN BİTTİĞİ TARİH: `, ...baseStyle, bold: true, underline: true }),
                  new TextRun({ text: `${formData.today}`, ...baseStyle }),
       ],
     }),
     new Paragraph({
-      children: [new TextRun({ text: "ARABULUCULUK SONUCU  : ", ...baseStyle, bold: true }),
+      children: [new TextRun({ text: "ARABULUCULUK SONUCU  : ", ...baseStyle, bold: true, underline: true }),
                  new TextRun({ text: "Anlaşma olmuştur. (İhtiyari arabuluculuk)", ...baseStyle }),
       ],
     }),
@@ -131,19 +163,39 @@ function generateArbitrationAgreement(formData) {
       children: [new TextRun({ text: `İş bu son tutanak belgesi, 1 sayfa ve 3 nüsha olarak 6325 sayılı Hukuk Uyuşmazlıklarında Arabuluculuk Kanununun 18.md ve 4857 Sayılı İş Kanununun 21. Maddesi uyarınca hep birlikte imza altına alındı.${formData.today}`, ...baseStyle })],
     }),
     new Paragraph({
-      children: [new TextRun({ text: "İMZALAR", ...baseStyle,  })],
-      indent: { left: 720 }
+        children: [
+            new TextRun({ 
+                text: "İMZALAR",
+                bold: true,
+                underline: true,
+                italics: true,
+                ...baseStyle 
+            })
+        ],
+        indent: {
+            left: 5760
+        },
     }),
+    new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
     new Paragraph({
-      children: [new TextRun({ text: `TARAF 1 : `, ...baseStyle, bold: true }),
+      children: [new TextRun({ text: `TARAF 1   : `, ...baseStyle, bold: true }),
                  new TextRun({ text: `${formData.taraf1isim}`, ...baseStyle }),
       ],
     }),
+    new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+    new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+
     new Paragraph({
-      children: [new TextRun({ text: `TARAF 2 : `, ...baseStyle, bold: true }),
+      children: [new TextRun({ text: `TARAF 2   : `, ...baseStyle, bold: true }),
                  new TextRun({ text: `${formData.taraf2isim}`, ...baseStyle }),
       ],
     }),
+    new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+    new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+
     new Paragraph({
       children: [new TextRun({ text: "ARABULUCU:Uzm.Arb.Av.Mehmet Celal Kemik", ...baseStyle, bold: true })],
     }),
@@ -537,6 +589,623 @@ function generateFirstSessionMinutes(formData) {
                 new TextRun({ 
                     text: "Uzm.Arb.Av.Mehmet Celal Kemik",
                     ...baseStyle1 
+                })
+            ]
+        })
+    ];
+
+    return new Document({
+        sections: [{
+            properties: {},
+            children: children
+        }]
+    });
+}
+function generateApplicationDocument(formData) {
+    const baseStyle = { font: "Calibri", size: 24 };
+    const baseStyle1 = { font: "Calibri", size: 24, italics: true};
+
+    
+    const children = [
+        new Paragraph({
+            children: [
+                new TextRun({
+                    text: "ARABULUCULUK BAŞVURU TUTANAĞI",
+                    size: 30, 
+                    font: "Calibri"
+                })
+            ],
+            alignment: AlignmentType.CENTER,
+        }),
+
+        new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 1        :", 
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1 
+                })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADI SOYADI  : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf1isim, ...baseStyle1 }),
+                new TextRun({ text: " -TC KİMLİK NO: ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.kimlik_no, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADRESİ          : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf1adres, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 2        :", 
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1
+                })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADI SOYADI  : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf2isim, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "MERSİS NO   : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf2mersis_no, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADRESİ          : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf2adres, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ARABULUCULUK KONUSU UYUŞMAZLIK : ", 
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1 
+                }),
+                new TextRun({ 
+                    text: "İhbar tazminatı, kıdem tazminatı, yıllık izin, fazla mesai, UBGT alacağı, hafta tatili alacağı, AGİ alacağı, diğer işçi alacakları.",
+                    ...baseStyle1 
+                })
+            ]
+        }),
+
+        new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+        new Paragraph({
+            children: [
+                new TextRun({   
+                    text: "Hukuk Uyuşmazlıklarında Arabuluculuk Kanunu ve İş Mahkemeleri Kanunu gereğince ihtiyari arabuluculuk hükümleri çerçevesinde uyuşmazlığımızın Arabuluculuk yoluyla çözümü için Arabuluculuğunuza başvuruyoruz.",
+                    ...baseStyle
+                })
+            ],
+            indent: {
+                firstLine: 720
+            },
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "Arabuluculuk sürecinin tarafınızca başlatılmasını talep ederiz.",
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.today, ...baseStyle })
+            ],
+            indent: {
+                firstLine: 720
+            },
+        }),
+
+        new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+ 
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 1     : ",
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1 
+                }),
+                new TextRun({ text: formData.taraf1isim, ...baseStyle1 })
+            ]
+        }),
+        
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "         ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "             ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 2     : ",
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1 
+                }),
+                new TextRun({ text: formData.taraf2isim, ...baseStyle1 }),
+            ]
+        }),
+        
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ARABULUCU:",
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1 
+                }),
+                new TextRun({ 
+                    text: "Uzm.Arb.Av.Mehmet Celal Kemik  Sicil No:4573",
+                    ...baseStyle1 
+                })
+            ]
+        })
+    ];
+
+    return new Document({
+        sections: [{
+            properties: {},
+            children: children
+        }]
+    });
+}
+
+function generateAgreementDocument(formData) {
+    const baseStyle = { font: "Calibri", size: 24 };
+    const baseStyle1 = { font: "Calibri", size: 24, italics: true};
+
+    
+    const children = [
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ANLAŞMA TUTANAĞI (İhtiyari Alabuluculuk)",
+                    bold: true,
+                    italics: true,
+                    ...baseStyle 
+                })
+            ],
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: `ARABULUCULUK DOSYA No:2024/${formData.dosya_numarasi}`,
+                    bold: true,
+                    italics: true,
+                    ...baseStyle 
+                })
+            ],
+        }),
+
+        new Paragraph({
+            children: [new TextRun({ text: "ARABULUCU  :", ...baseStyle, bold: true, underline: true })],
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "ADI SOYADI  : Mehmet Celal Kemik", ...baseStyle, bold: true })],
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "SİCİL NO        : 4573", ...baseStyle, bold: true })],
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "ADRESİ          :", ...baseStyle, bold: true }),
+                       new TextRun({ text: " Kemerköprü mah. Kavaf sok. No:2 Bartın", ...baseStyle }),
+            ],
+          }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 1        :", 
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1 
+                })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADI SOYADI  : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf1isim, ...baseStyle1 }),
+                new TextRun({ text: " -TC KİMLİK NO: ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.kimlik_no, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADRESİ          : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf1adres, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 2        :", 
+                    bold: true,
+                    underline: true,
+                    ...baseStyle1
+                })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADI SOYADI  : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf2isim, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "MERSİS NO   : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf2mersis_no, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ text: "ADRESİ          : ", bold: true, ...baseStyle1 }),
+                new TextRun({ text: formData.taraf2adres, ...baseStyle1 })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ARABULUCULUK KONUSU UYUŞMAZLIK :", 
+                    bold: true,
+                    italics: true,
+                    underline: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ 
+                    text: "Kıdem tazminatı, İhbar tazminatları ,Ücret alacağı, Fazla mesai alacağı, yıllık izin alacağı, UGBT alacağı, agi alacağı, hafta sonu çalışma alacağı,",
+                    italics: true,
+                    ...baseStyle 
+                })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ARABULUCULUK SÜRECİ BAŞLAGIÇ TARİH :",
+                    bold: true,
+                    italics: true,
+                    underline: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.today, italics: true, ...baseStyle })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ARABULUCULUK SÜRECİNİN BİTTİĞİ TARİH:",
+                    bold: true,
+                    italics: true,
+                    underline: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: ` ${formData.today}`, italics: true, ...baseStyle })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ARABULUCULUK SONUCU :",
+                    bold: true,
+                    italics: true,
+                    underline: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ 
+                    text: "Anlaşma olmuştur. (İhtiyari arabuluculuk)",
+                    bold: true,
+                    italics: true,
+                    ...baseStyle 
+                })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "Taraflar, ihtiyari arabuluculuk için tarafımıza birlikte başvurmuş olmakla, arabuluculuk süreci başlatıldı.",
+                    italics: true,
+                    ...baseStyle 
+                })
+            ]
+        }),
+        new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "Adı geçen taraflar ile, online ve yüzyüze oturumlar yapıldı. Taraflara arabuluculuk süreci konusunda bilgi verildi.Anlaşma ve anlaşmama belgesinin, hukuki ve mali yönlerden bütün sonuçları anlatıldı.Taraflar, arabuluculuk sürecinin hukuki ve mali sonuçlarını anladık dediler.Taraflar üzerinde anlaşılan hususlarda dava açılamayacağını anladıklarını kabul ve beyan ettiler. Taraf ",
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.taraf1isim, italics: true, ...baseStyle }),
+                new TextRun({ 
+                    text: "'a, haklarına ilişkin bir hukukçu uzmandan bilgi alabileceğine dair bilgi verilmiş, ",
+                    italics: true,
+                    bold: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.taraf1isim, italics: true, ...baseStyle }),
+                new TextRun({ 
+                    text: " , hakları konusunda bilgi sahibi olduğunu, bu konuda bir uzman görüşü almak istemediklerini beyan etmiş ve müzakerelere başlanmıştır. Taraflar arabulucu huzurunda işçi ve işveren ilişkisine dayalı hizmet akdinden kaynaklı işçilik alacakları, işe iade talebi, boşta geçen süre ücreti, kıdem tazminatı, ihbar tazminatı, yıllık izin ücret, fazla mesai ücreti, ulusal bayram ve genel tatil ücreti, ücret, AGİ, hafta tatili, ikramiye alacağı, yol harcırahı, prim ve maddi ve manevi tazminat alacaklarına ilişkin hususlarda müzakerede bulunmuş ve aralarındaki uyuşmazlığın çözümü konusunda özgür iradeleriyle aşağıdaki şartlarda anlaşmışlar ve 6325 sayılı Hukuk Uyuşmazlıklarında Arabuluculuk Kanunu'nun 18. maddesi uyarınca anlaşmaya varmaları üzerine işbu anlaşma belgesi hazırlanmıştır.",
+                    italics: true,
+                    ...baseStyle 
+                })
+            ]
+        }),
+        new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "Taraflar, İşçi ",
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.taraf1isim, italics: true, ...baseStyle }),
+                new TextRun({ 
+                    text: " 'ın, karşı taraf, ",
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.taraf2isim, italics: true, ...baseStyle }),
+                new TextRun({ 
+                    text: " 'den, Kıdem tazminatı ve diğer işçi alacakları olarak, toplam net 42.257,48 TL alacağı olduğu hususunda mutabık kalmışlardır.",
+                    italics: true,
+                    ...baseStyle 
+                })
+            ]
+        }),
+        new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "İş bu, 42.257,48 TL toplam alacak, işveren şirket tarafından, işçinin Bankadaki maaş hesabına yatırılacaktır.",
+                    italics: true,
+                    ...baseStyle 
+                })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "İşçi ",
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.taraf1isim, italics: true, ...baseStyle }),
+                new TextRun({ 
+                    text: " , yukarıda belirtilen alacak dışında işverenden, İhbar tazminatı, kıdem tazminatı, yıllık izin, fazla mesai, UBGT alacağı, hafta tatili alacağı, AGİ alacağı ikramiye alacağı, yol harcırahı, prim, boşta geçen süre ücreti , bonus ve maddi ve manevi tazminat alacağının var olmadığını, işe iade talebinin olmadığını varsa da feragat ettiğini kabul ve taahhüt eder.",
+                    italics: true,
+                    ...baseStyle 
+                })
+            ]
+        }),
+        new Paragraph({ text: "", ...baseStyle }), // Empty line for spacing
+
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "İş bu Anlaşma belgesi, 2 sayfa ve 3 nüsha olarak 6325 sayılı Hukuk Uyuşmazlıklarında Arabuluculuk Kanununun 18.md ve 4857 Sayılı İş Kanununun 21. Maddesi uyarınca hep birlikte imza altına alındı.",
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.today, italics: true, ...baseStyle })
+            ]
+        }),
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "İMZALAR",
+                    bold: true,
+                    underline: true,
+                    italics: true,
+                    ...baseStyle 
+                })
+            ],
+            indent: {
+                left: 5760
+            },
+        }),
+
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 1     : ",
+                    bold: true,
+                    underline: true,
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.taraf1isim, italics: true, ...baseStyle })
+            ]
+        }),
+        
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "         ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "             ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "TARAF 2     : ",
+                    bold: true,
+                    underline: true,
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ text: formData.taraf2isim, italics: true, ...baseStyle }),
+            ]
+        }),
+        
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "              ",
+                    
+                    ...baseStyle 
+                }),
+            ]
+        }),
+        
+
+        new Paragraph({
+            children: [
+                new TextRun({ 
+                    text: "ARABULUCU:",
+                    bold: true,
+                    underline: true,
+                    italics: true,
+                    ...baseStyle 
+                }),
+                new TextRun({ 
+                    text: "Uzm.Arb.Av.Mehmet Celal Kemik  Sicil No:4573",
+                    italics: true,
+                    ...baseStyle 
                 })
             ]
         })
