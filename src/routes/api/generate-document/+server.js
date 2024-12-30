@@ -226,9 +226,10 @@ function generateArbitrationAgreement(formData) {
   return doc;
 }
 function generateFirstSessionMinutes(formData) {
-    const baseStyle = { font: "Calibri", size: 24 };
-    const baseStyle1 = { font: "Calibri", size: 24, italics: true};
-
+    // Use Arial which has better compatibility with older Word versions
+    const baseStyle = { font: "Arial", size: 24 };
+    // Avoid using italics in base style for better compatibility
+    const baseStyle1 = { font: "Arial", size: 24 };
     
     const children = [
         new Paragraph({
@@ -327,30 +328,22 @@ function generateFirstSessionMinutes(formData) {
                 new TextRun({ text: formData.today, ...baseStyle1 })
             ]
         }),
+        // Replace complex table with simpler table structure
         new Table({
             width: {
-                size: 100,
-                type: WidthType.PERCENTAGE
-            },
-            borders: {
-                top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" }
+                size: 9000, // Fixed width in twips
+                type: WidthType.DXA
             },
             rows: [
                 new TableRow({
                     children: [
-                        new TableCell({ 
+                        new TableCell({
                             children: [
                                 new Paragraph({
                                     children: [
                                         new TextRun({ 
                                             text: "İlk Oturum/Açılış Tutanağının Düzenlendiği Yer : ",
                                             bold: true,
-                                            underline: true,
                                             ...baseStyle 
                                         }),
                                         new TextRun({ text: "Kemik Arabuluculuk ve Hukuk Bürosu", ...baseStyle })
@@ -598,7 +591,14 @@ function generateFirstSessionMinutes(formData) {
         sections: [{
             properties: {},
             children: children
-        }]
+        }],
+        compatibility: {
+            doNotExpandShiftReturn: true,
+            doNotUseIndentAsNumberingTabStop: true,
+            useWord2013TrackBottomHyphenation: true,
+            suppressTopSpacingWP: true,
+            useWord97LineBreakRules: true
+        }
     });
 }
 function generateApplicationDocument(formData) {
